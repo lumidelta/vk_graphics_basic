@@ -2,8 +2,8 @@
 
 int main()
 {
-  constexpr int LENGTH = 10;
-  constexpr int VULKAN_DEVICE_ID = 0;
+  constexpr int LENGTH = 1000000;
+  constexpr int VULKAN_DEVICE_ID = 1;
 
   std::shared_ptr<ICompute> app = std::make_unique<SimpleCompute>(LENGTH);
   if(app == nullptr)
