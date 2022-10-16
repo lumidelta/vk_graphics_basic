@@ -21,9 +21,12 @@ void main()
     uint idx = gl_GlobalInvocationID.x;
     if (idx < PushConstant.len) {
         result[idx] = 0;
-        for (int i = -3; i <= 3; i++) {
-            if (idx + i >= 0 && idx + i < PushConstant.len) {
+        for (int i = 3; i >= -3; i--) {
+            if (idx + i < PushConstant.len) {
                 result[idx] += source[idx + i];
+            }
+            if (idx + i == 0) {
+                break;
             }
         }
     }
