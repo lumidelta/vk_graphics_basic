@@ -77,10 +77,10 @@ void SimpleCompute::SetupSimplePipeline()
   };
 
   // Создание и аллокация буферов
-  m_source = vk_utils::createBuffer(m_device, sizeof(float) * m_length, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+  m_source = vk_utils::createBuffer(m_device, sizeof(double) * m_length, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | 
                                                                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-  m_result = vk_utils::createBuffer(m_device, sizeof(float) * m_length, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+  m_result = vk_utils::createBuffer(m_device, sizeof(double) * m_length, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
   vk_utils::allocateAndBindWithPadding(m_device, m_physicalDevice, { m_source, m_result }, 0);
 
@@ -94,11 +94,11 @@ void SimpleCompute::SetupSimplePipeline()
 
   // Заполнение буферов
   srand(0);
-  std::vector<float> values(m_length);
+  std::vector<double> values(m_length);
   for (uint32_t i = 0; i < values.size(); ++i) {
-    values[i] = (float)rand();
+    values[i] = (double)rand();
   }
-  m_pCopyHelper->UpdateBuffer(m_source, 0, values.data(), sizeof(float) * values.size());
+  m_pCopyHelper->UpdateBuffer(m_source, 0, values.data(), sizeof(double) * values.size());
 }
 
 void SimpleCompute::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, VkPipeline)
@@ -222,10 +222,10 @@ void SimpleCompute::Execute()
             << std::chrono::duration<float, std::milli>{ std::chrono::high_resolution_clock::now() - gpu }.count()
             << std::endl;
 
-  std::vector<float> source(m_length), result(m_length);
-  m_pCopyHelper->ReadBuffer(m_source, 0, source.data(), sizeof(float) * source.size());
-  m_pCopyHelper->ReadBuffer(m_result, 0, result.data(), sizeof(float) * result.size());
-  float ttl = 0;
+  std::vector<double> source(m_length), result(m_length);
+  m_pCopyHelper->ReadBuffer(m_source, 0, source.data(), sizeof(double) * source.size());
+  m_pCopyHelper->ReadBuffer(m_result, 0, result.data(), sizeof(double) * result.size());
+  double ttl = 0;
   for (int i = 0; i < source.size(); i++)
   {
     ttl += source[i] - result[i];
@@ -237,7 +237,7 @@ void SimpleCompute::Execute()
   srand(0);
   for (uint32_t i = 0; i < source.size(); i++)
   {
-    source[i] = (float)rand();
+    source[i] = (double)rand();
   }
   auto cpu = std::chrono::high_resolution_clock::now();
   for (uint32_t i = 0; i < result.size(); i++) {
