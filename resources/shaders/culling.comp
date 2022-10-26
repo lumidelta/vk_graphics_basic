@@ -38,4 +38,8 @@ void main()
         int num = atomicAdd(number, 1);
         outputInstance[num] = idx;
     }
+    barrier();
+    if (idx == 0) {
+        instanceCount = number;
+    }
 }

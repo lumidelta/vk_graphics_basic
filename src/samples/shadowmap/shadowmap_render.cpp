@@ -38,6 +38,22 @@ void SimpleShadowmapRender::AllocateResources()
   });
 
   m_uboMappedMem = constants.map();
+
+  posMatrix = m_context->createBuffer(etna::Buffer::CreateInfo 
+  {
+    .size = sizeof(LiteMath::float4x4) * 10000,
+    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer,
+  });
+  instanceCount = m_context->createBuffer(etna::Buffer::CreateInfo
+  {
+     .size = sizeof(uint32_t),
+     .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer,
+  });
+  outputInstance = m_context->createBuffer(etna::Buffer::CreateInfo
+  {
+    .size        = sizeof(uint32_t) * 10000,
+    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer,
+  });
 }
 
 void SimpleShadowmapRender::LoadScene(const char* path, bool transpose_inst_matrices)
@@ -175,19 +191,22 @@ void SimpleShadowmapRender::DestroyPipelines()
 
 /// COMMAND BUFFER FILLING
 
+void SimpleShadowmapRender::RunCompute(VkCommandBuffer a_cmdBuff, const float4x4 &a_wvp)
+{
+  VkShaderStageFlags stageFlags = (VK_SHADER_STAGE_COMPUTE_BIT);
+  pushConstComp.projView        = a_wvp;
+  for (uint32_t i = 0; i < m_pScnMgr->InstancesNum(); ++i)
+  {
+    pushConstComp.BBox           = m_pScnMgr->GetInstanceBbox(i);
+    pushConstComp.uInstanceCount = 10000;
+    vkCmdPushConstants(a_cmdBuff, m_cullingPipeline.getVkPipelineLayout(), stageFlags, 0, sizeof(pushConstComp), &pushConstComp);
+    vkCmdDispatch(a_cmdBuff, 1, 0, 0);
+  }
+}
+
 void SimpleShadowmapRender::DrawSceneCmd(VkCommandBuffer a_cmdBuff, const float4x4& a_wvp)
 {
-    VkShaderStageFlags stageFlags = (VK_SHADER_STAGE_COMPUTE_BIT);
-    pushConstComp.projView          = a_wvp;
-    for (uint32_t i = 0; i < m_pScnMgr->InstancesNum(); ++i)
-    {
-      pushConstComp.BBox = m_pScnMgr->GetInstanceBbox(i);
-      pushConstComp.uInstanceCount = 10000;
-      vkCmdPushConstants(a_cmdBuff, m_cullingPipeline.getVkPipelineLayout(), stageFlags, 0, sizeof(pushConstComp), &pushConstComp);
-      //vkCmdDispatch(a_cmdBuff, 1, 0, 0);
-    }
-
-    stageFlags               = (VK_SHADER_STAGE_VERTEX_BIT);
+    VkShaderStageFlags stageFlags = (VK_SHADER_STAGE_VERTEX_BIT);
     VkDeviceSize zero_offset = 0u;
     VkBuffer vertexBuf = m_pScnMgr->GetVertexBuffer();
     VkBuffer indexBuf  = m_pScnMgr->GetIndexBuffer();
@@ -323,14 +342,19 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
       };
     vkCmdPipelineBarrier2(a_cmdBuff, &depInfo);
   }
+  //// call compute shader
   {
     auto cullingInfo = etna::get_shader_program("culling");
     auto set         = etna::create_descriptor_set(cullingInfo.getDescriptorLayoutId(0), { 
-      etna::Binding{ 0, vk::DescriptorBufferInfo{ constants.get(), 0, VK_WHOLE_SIZE } }, 
-      etna::Binding{ 1, vk::DescriptorBufferInfo{ constants.get(), 0, VK_WHOLE_SIZE } }, 
-      etna::Binding{ 2, vk::DescriptorBufferInfo{ constants.get(), 0, VK_WHOLE_SIZE } }, 
+      etna::Binding{ 0, vk::DescriptorBufferInfo{ posMatrix.get(), 0, VK_WHOLE_SIZE } }, 
+      etna::Binding{ 1, vk::DescriptorBufferInfo{ instanceCount.get(), 0, VK_WHOLE_SIZE } }, 
+      etna::Binding{ 2, vk::DescriptorBufferInfo{ outputInstance.get(), 0, VK_WHOLE_SIZE } }, 
     });
     VkDescriptorSet vkSet = set.getVkSet();
+    vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_COMPUTE, m_cullingPipeline.getVkPipeline());
+    vkCmdBindDescriptorSets(a_cmdBuff, VK_PIPELINE_BIND_POINT_COMPUTE, 
+      m_cullingPipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, VK_NULL_HANDLE);
+    RunCompute(a_cmdBuff, m_worldViewProj);
   }
   //// draw final scene to screen
   //
