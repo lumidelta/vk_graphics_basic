@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<textures_lib total_chunks="0">
+</textures_lib>
+<materials_lib>
+</materials_lib>
+<geometry_lib total_chunks="1">
+	<mesh id="0" name="bunny" type="vsgf" bytesize="7897984" loc="data/teapot.vsgf" offset="0" vertNum="99879" triNum="144046" dl="0" path="" bbox="-0.9559 0.6579 0.021 1.6418 -0.543 0.6895">
+		<positions type="array4f" bytesize="1598064" offset="24" apply="vertex" />
+		<normals type="array4f" bytesize="1598064" offset="1598088" apply="vertex" />
+		<tangents type="array4f" bytesize="1598064" offset="3196152" apply="vertex" />
+		<texcoords type="array2f" bytesize="799032" offset="4794216" apply="vertex" />
+		<indices type="array1i" bytesize="1728552" offset="5593248" apply="tlist" />
+		<matindices type="array1i" bytesize="576184" offset="7321800" apply="primitive" />
+	</mesh>
+</geometry_lib>
+<lights_lib>
+	<light id="0" name="sky" type="sky" shape="point" visible="1" mat_id="7">
+		<intensity>
+			<color val="0.5 0.5 1" />
+			<multiplier val="1.0" />
+		</intensity>
+	</light>
+</lights_lib>
+<cam_lib>
+	<camera id="0" name="my camera" type="uvn">
+		<fov>45</fov>
+		<nearClipPlane>0.01</nearClipPlane>
+		<farClipPlane>100.0</farClipPlane>
+		<up>0 1 0</up>
+		<position>0 5 40</position>
+		<look_at>0 0 0</look_at>
+	</camera>
+</cam_lib>
+<render_lib>
+</render_lib>
+<scenes>
+	<scene id="0" name="my scene" discard="1" bbox="   -10 10 -4.137 0.7254 -10 10">
+		<remap_lists>
+			<remap_list id="0" size="2" val="0 4 " />
+		</remap_lists>
+		<instance id="0" mesh_id="0" rmap_id="0" scn_id="0" scn_sid="0" matrix="1 0 0 1 0 1 0 1 0 0 1 1 0 0 0 1 " />
+	</scene>
+</scenes>

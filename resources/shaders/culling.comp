@@ -1,0 +1,41 @@
+#version 430
+
+layout( local_size_x = 32 ) in;
+
+struct BBox {
+    vec4 firstPoint;
+    vec4 secondPoint;
+};
+
+layout( push_constant ) uniform params {
+    mat4 mProjView;
+    BBox bb;
+    uint uInstanceCount;
+} PushConstant;
+
+// Instance info 
+layout(std430, binding = 0) buffer InstanceInfo {
+    mat4 posMatrix[];
+};
+
+// Return Instances to Draw
+layout(std430, binding = 1) buffer OutIndex
+{
+    uint instanceCount;
+};
+
+// Return Instances to Draw
+layout(std430, binding = 2) buffer OutInstance
+{
+    uint outputInstance[];
+};
+shared int number;
+
+void main() 
+{
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx < PushConstant.uInstanceCount) {
+        int num = atomicAdd(number, 1);
+        outputInstance[num] = idx;
+    }
+}
