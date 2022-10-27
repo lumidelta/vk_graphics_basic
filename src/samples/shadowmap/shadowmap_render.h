@@ -78,7 +78,7 @@ private:
   float4x4 m_lightMatrix;    
 
   UniformParams m_uniforms {};
-  void* m_uboMappedMem = nullptr;
+  void *m_uboMappedMem = nullptr, *m_boInstances = nullptr, *m_boInstanceCount = nullptr, *m_boOutputInstance = nullptr;
   etna::ComputePipeline m_cullingPipeline{};
   etna::GraphicsPipeline m_basicForwardPipeline {};
   etna::GraphicsPipeline m_shadowPipeline {};
@@ -87,6 +87,8 @@ private:
   
   VkSurfaceKHR m_surface = VK_NULL_HANDLE;
   VulkanSwapChain m_swapchain;
+
+  uint32_t m_numInstLine = 100;
 
   Camera   m_cam;
   uint32_t m_width  = 1024u;
@@ -101,8 +103,9 @@ private:
   std::shared_ptr<SceneManager>     m_pScnMgr;
   
   std::shared_ptr<vk_utils::IQuad>               m_pFSQuad;
-  VkDescriptorSet       m_quadDS; 
-  VkDescriptorSetLayout m_quadDSLayout = nullptr;
+  VkDescriptorSet m_quadDS, m_computeDS; 
+  VkDescriptorSetLayout m_quadDSLayout = nullptr, m_computeDSLayout = nullptr;
+
 
   struct InputControlMouseEtc
   {
@@ -140,6 +143,7 @@ private:
   void BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, VkImage a_targetImage, VkImageView a_targetImageView);
 
   void RunCompute(VkCommandBuffer a_cmdBuff, const float4x4 &a_wvp);
+  void FillComputeBuffers();
   void DrawSceneCmd(VkCommandBuffer a_cmdBuff, const float4x4& a_wvp);
 
   void loadShaders();

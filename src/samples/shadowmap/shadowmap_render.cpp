@@ -41,19 +41,27 @@ void SimpleShadowmapRender::AllocateResources()
 
   posMatrix = m_context->createBuffer(etna::Buffer::CreateInfo 
   {
-    .size = sizeof(LiteMath::float4x4) * 10000,
+    .size = sizeof(LiteMath::float4x4) * m_numInstLine * m_numInstLine,
     .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer,
+    .memoryUsage = VMA_MEMORY_USAGE_CPU_ONLY
   });
+
+  m_boInstances  = posMatrix.map();
+
   instanceCount = m_context->createBuffer(etna::Buffer::CreateInfo
   {
      .size = sizeof(uint32_t),
-     .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer,
+     .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+     .memoryUsage = VMA_MEMORY_USAGE_CPU_ONLY
   });
+  m_boInstanceCount = instanceCount.map();
   outputInstance = m_context->createBuffer(etna::Buffer::CreateInfo
   {
-    .size        = sizeof(uint32_t) * 10000,
-    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer,
+    .size        = sizeof(uint32_t) * m_numInstLine * m_numInstLine,
+        .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+    .memoryUsage = VMA_MEMORY_USAGE_CPU_ONLY
   });
+  m_boOutputInstance = outputInstance.map();
 }
 
 void SimpleShadowmapRender::LoadScene(const char* path, bool transpose_inst_matrices)
@@ -139,7 +147,8 @@ void SimpleShadowmapRender::SetupSimplePipeline()
 {
   std::vector<std::pair<VkDescriptorType, uint32_t> > dtypes = {
       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             1},
-      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     2}
+      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     2},
+      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             3}
   };
 
   m_pBindings = std::make_shared<vk_utils::DescriptorMaker>(m_context->getDevice(), dtypes, 2);
@@ -147,6 +156,11 @@ void SimpleShadowmapRender::SetupSimplePipeline()
   m_pBindings->BindBegin(VK_SHADER_STAGE_FRAGMENT_BIT);
   m_pBindings->BindImage(0, shadowMap.getView({}), defaultSampler.get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   m_pBindings->BindEnd(&m_quadDS, &m_quadDSLayout);
+  m_pBindings->BindBegin(VK_SHADER_STAGE_COMPUTE_BIT);
+  m_pBindings->BindBuffer(0, posMatrix.get());
+  m_pBindings->BindBuffer(1, instanceCount.get());
+  m_pBindings->BindBuffer(2, outputInstance.get());
+  m_pBindings->BindEnd(&m_computeDS, &m_computeDSLayout);
 
   etna::VertexShaderInputDescription sceneVertexInputDesc
     {
@@ -191,8 +205,24 @@ void SimpleShadowmapRender::DestroyPipelines()
 
 /// COMMAND BUFFER FILLING
 
+void SimpleShadowmapRender::FillComputeBuffers()
+{
+  uint scale = 2;
+  std::vector<LiteMath::float4x4> instances;
+  for (int i = 1; i <= m_numInstLine; i++)
+  {
+    for (int j = 1; j <= m_numInstLine; j++)
+    {
+      LiteMath::float4x4 position = LiteMath::translate4x4({ (float)i * scale, 0, (float)j * scale });
+      instances.push_back({ position });
+    }
+  }
+  memcpy(m_boInstances, instances.data(), sizeof(LiteMath::float4x4) * instances.size());
+}
+
 void SimpleShadowmapRender::RunCompute(VkCommandBuffer a_cmdBuff, const float4x4 &a_wvp)
 {
+  FillComputeBuffers();
   VkShaderStageFlags stageFlags = (VK_SHADER_STAGE_COMPUTE_BIT);
   pushConstComp.projView        = a_wvp;
   for (uint32_t i = 0; i < m_pScnMgr->InstancesNum(); ++i)
@@ -200,7 +230,34 @@ void SimpleShadowmapRender::RunCompute(VkCommandBuffer a_cmdBuff, const float4x4
     pushConstComp.BBox           = m_pScnMgr->GetInstanceBbox(i);
     pushConstComp.uInstanceCount = 10000;
     vkCmdPushConstants(a_cmdBuff, m_cullingPipeline.getVkPipelineLayout(), stageFlags, 0, sizeof(pushConstComp), &pushConstComp);
-    vkCmdDispatch(a_cmdBuff, 1, 0, 0);
+    vkCmdDispatch(a_cmdBuff, pushConstComp.uInstanceCount / 32 + 1, 1, 1);
+    {
+      std::array barriers{
+        // Transfer the shadowmap to depth write layout
+        VkBufferMemoryBarrier2{
+          .sType         = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+          .srcStageMask  = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+          .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
+          .dstStageMask  = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+          .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
+          .buffer        = instanceCount.get(),
+          .size          = VK_WHOLE_SIZE 
+        }
+      };
+      VkDependencyInfo depInfo{
+        .sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .dependencyFlags         = VK_DEPENDENCY_BY_REGION_BIT,
+        .bufferMemoryBarrierCount = static_cast<uint32_t>(barriers.size()),
+        .pBufferMemoryBarriers   = barriers.data(),
+      };
+      vkCmdPipelineBarrier2(a_cmdBuff, &depInfo);
+    }
+    //fence here
+    uint32_t numInstances;
+    memcpy(&numInstances, m_boInstanceCount, sizeof(uint32_t));
+    std::vector<uint32_t> instancesNum(m_numInstLine * m_numInstLine);
+    memcpy(instancesNum.data(), m_boOutputInstance, sizeof(uint32_t) * instancesNum.size());
+    uint32_t numInstances2 = 0;   
   }
 }
 
