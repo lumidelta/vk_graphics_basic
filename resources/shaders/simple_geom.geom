@@ -3,7 +3,7 @@
 #include "common.h"
 
 layout (triangles) in;
-layout (line_strip, max_vertices = 2) out;
+layout (triangle_strip, max_vertices = 3) out;
 
 layout(push_constant) uniform params_t {
     mat4 mProjView;
@@ -16,8 +16,16 @@ layout (location = 0) in VS_IN
     vec3 wNorm;
     vec3 wTangent;
     vec2 texCoord;
-    vec3 color;
 } gs_in[];
+
+layout (location = 0) out VS_OUT
+{
+    vec3 wPos;
+    vec3 wNorm;
+    vec3 wTangent;
+    vec2 texCoord;
+} gs_out;
+
 
 layout(binding = 0, set = 0) uniform AppData
 {
@@ -25,7 +33,7 @@ layout(binding = 0, set = 0) uniform AppData
 };
 
 vec4 Explode(vec4 position, vec3 normal) {
-    float magnitude = 0.05 * abs(sin(Params.time));
+    float magnitude = 0.25 * abs(sin(Params.time));
     vec3 direction = normal * magnitude; 
     return position + vec4(direction, 0.0);
 } 
@@ -41,10 +49,13 @@ vec4 GetMiddle() {
 }
 
 void main() {    
-    gl_Position = params.mProjView * GetMiddle();
+    gl_Position = params.mProjView * Explode(vec4(gs_in[0].wPos, 1.0f), GetNormal());
     EmitVertex();
 
-    gl_Position = params.mProjView * Explode(GetMiddle(), GetNormal());
+    gl_Position = params.mProjView * Explode(vec4(gs_in[1].wPos, 1.0f), GetNormal());
+    EmitVertex();
+
+    gl_Position = params.mProjView * Explode(vec4(gs_in[2].wPos, 1.0f), GetNormal());
     EmitVertex();
 
     EndPrimitive();
