@@ -46,7 +46,7 @@ private:
   etna::Image mainViewDepth;
   etna::Image shadowMap;
   etna::Sampler defaultSampler;
-  etna::Buffer constants, posMatrix, instanceCount, outputInstance;
+  etna::Buffer constants, posMatrix, instanceCount, outputInstance, infoIndirect;
 
   VkCommandPool    m_commandPool    = VK_NULL_HANDLE;
 
@@ -64,6 +64,7 @@ private:
   struct
   {
     float4x4 projView;
+    float4x4 mModel;
   } pushConst2M;
 
   struct
@@ -77,7 +78,7 @@ private:
   float4x4 m_lightMatrix;    
 
   UniformParams m_uniforms {};
-  void *m_uboMappedMem = nullptr, *m_boInstances = nullptr, *m_boInstanceCount = nullptr, *m_boOutputInstance = nullptr;
+  void *m_uboMappedMem = nullptr, *m_boInstances = nullptr, *m_boInstanceCount = nullptr, *m_boOutputInstance = nullptr, *m_sInfoIndirect = nullptr;
   etna::ComputePipeline m_cullingPipeline{};
   etna::GraphicsPipeline m_basicForwardPipeline {};
   etna::GraphicsPipeline m_shadowPipeline {};

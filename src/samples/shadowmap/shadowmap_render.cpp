@@ -58,10 +58,15 @@ void SimpleShadowmapRender::AllocateResources()
   outputInstance = m_context->createBuffer(etna::Buffer::CreateInfo
   {
     .size        = sizeof(uint32_t) * m_numInstLine * m_numInstLine,
-    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndirectBuffer,
+    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
     .memoryUsage = VMA_MEMORY_USAGE_CPU_ONLY
   });
   m_boOutputInstance = outputInstance.map();
+  infoIndirect     = m_context->createBuffer(etna::Buffer::CreateInfo{
+        .size        = sizeof(VkDrawIndexedIndirectCommand),
+        .bufferUsage = vk::BufferUsageFlagBits::eIndirectBuffer,
+        .memoryUsage = VMA_MEMORY_USAGE_CPU_TO_GPU });
+  m_sInfoIndirect    = infoIndirect.map();
 }
 
 void SimpleShadowmapRender::LoadScene(const char* path, bool transpose_inst_matrices)
@@ -224,6 +229,7 @@ void SimpleShadowmapRender::RunCompute(VkCommandBuffer a_cmdBuff, const float4x4
 {
   FillComputeBuffers();
   vkCmdFillBuffer(a_cmdBuff, instanceCount.get(), 0, VK_WHOLE_SIZE, 0);
+  vkCmdFillBuffer(a_cmdBuff, outputInstance.get(), 0, VK_WHOLE_SIZE, 0);
   VkShaderStageFlags stageFlags = (VK_SHADER_STAGE_COMPUTE_BIT);
   pushConstComp.projView        = a_wvp;
   for (uint32_t i = 0; i < m_pScnMgr->InstancesNum(); ++i)
@@ -262,16 +268,25 @@ void SimpleShadowmapRender::DrawSceneCmd(VkCommandBuffer a_cmdBuff, const float4
     VkDeviceSize zero_offset = 0u;
     VkBuffer vertexBuf = m_pScnMgr->GetVertexBuffer();
     VkBuffer indexBuf  = m_pScnMgr->GetIndexBuffer();
+    VkDrawIndexedIndirectCommand *indirectBufferMem = (VkDrawIndexedIndirectCommand *)m_sInfoIndirect;
 
     vkCmdBindVertexBuffers(a_cmdBuff, 0, 1, &vertexBuf, &zero_offset);
     vkCmdBindIndexBuffer(a_cmdBuff, indexBuf, 0, VK_INDEX_TYPE_UINT32);
 
     pushConst2M.projView = a_wvp;
+    pushConst2M.mModel = m_pScnMgr->GetInstanceMatrix(0);
+
+    auto mesh_info                     = m_pScnMgr->GetMeshInfo(m_pScnMgr->GetInstanceInfo(0).mesh_id);
+    indirectBufferMem->firstIndex      = mesh_info.m_indexOffset;
+    indirectBufferMem->firstInstance   = 0;
+    indirectBufferMem->indexCount      = mesh_info.m_indNum;
+    indirectBufferMem->instanceCount   = *(uint *)m_boInstanceCount;
+    indirectBufferMem->vertexOffset    = mesh_info.m_vertexOffset;
 
     vkCmdPushConstants(a_cmdBuff, m_basicForwardPipeline.getVkPipelineLayout(),
             stageFlags, 0, sizeof(pushConst2M), &pushConst2M);
 
-    vkCmdDrawIndexedIndirect(a_cmdBuff, outputInstance.get(), 0, 1, 0);
+    vkCmdDrawIndexedIndirect(a_cmdBuff, infoIndirect.get(), 0, 1, 0);
 }
 
 void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, VkImage a_targetImage, VkImageView a_targetImageView)

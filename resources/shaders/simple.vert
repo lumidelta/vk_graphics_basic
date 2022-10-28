@@ -21,6 +21,7 @@ layout(binding = 3, set = 0) buffer InputIndexes
 layout(push_constant) uniform params_t
 {
     mat4 mProjView;
+    mat4 mModel;
 } params;
 
 
@@ -38,10 +39,10 @@ void main(void)
 {
     const vec4 wNorm = vec4(DecodeNormal(floatBitsToInt(vPosNorm.w)),         0.0f);
     const vec4 wTang = vec4(DecodeNormal(floatBitsToInt(vTexCoordAndTang.z)), 0.0f);
-
-    vOut.wPos     = (posMatrixes[inputIndexes[gl_InstanceIndex]] * vec4(vPosNorm.xyz, 1.0f)).xyz;
-    vOut.wNorm    = normalize(mat3(transpose(inverse(posMatrixes[inputIndexes[gl_InstanceIndex]]))) * wNorm.xyz);
-    vOut.wTangent = normalize(mat3(transpose(inverse(posMatrixes[inputIndexes[gl_InstanceIndex]]))) * wTang.xyz);
+    mat4 mModel   = posMatrixes[inputIndexes[gl_InstanceIndex]] * params.mModel;
+    vOut.wPos     = (mModel * vec4(vPosNorm.xyz, 1.0f)).xyz;
+    vOut.wNorm    = normalize(mat3(transpose(inverse(mModel))) * wNorm.xyz);
+    vOut.wTangent = normalize(mat3(transpose(inverse(mModel))) * wTang.xyz);
     vOut.texCoord = vTexCoordAndTang.xy;
 
     gl_Position   = params.mProjView * vec4(vOut.wPos, 1.0);
