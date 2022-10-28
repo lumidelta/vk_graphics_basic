@@ -64,7 +64,6 @@ private:
   struct
   {
     float4x4 projView;
-    float4x4 model;
   } pushConst2M;
 
   struct

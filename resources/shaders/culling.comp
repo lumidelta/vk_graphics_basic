@@ -19,27 +19,40 @@ layout(std430, binding = 0) buffer InstanceInfo {
 };
 
 // Return Instances to Draw
-layout(std430, binding = 1) buffer OutIndex
+layout(std430, binding = 1) buffer OutCount
 {
     uint instanceCount;
 };
 
 // Return Instances to Draw
-layout(std430, binding = 2) buffer OutInstance
+layout(std430, binding = 2) buffer OutIndex
 {
-    uint outputInstance[];
+    uint outputIndexes[];
 };
-shared int number;
 
 void main() 
 {
     uint idx = gl_GlobalInvocationID.x;
     if (idx < PushConstant.uInstanceCount) {
-        int num = atomicAdd(number, 1);
-        outputInstance[num] = idx;
-    }
-    barrier();
-    if (idx == 0) {
-        instanceCount = number;
+        vec4 obb_points[8] = {     
+                            PushConstant.bb.firstPoint,
+                        vec4(PushConstant.bb.firstPoint[0], PushConstant.bb.firstPoint[1], PushConstant.bb.secondPoint[2], 1.0f),
+                        vec4(PushConstant.bb.firstPoint[0], PushConstant.bb.secondPoint[1], PushConstant.bb.firstPoint[2], 1.0f),
+                        vec4(PushConstant.bb.firstPoint[0], PushConstant.bb.secondPoint[1], PushConstant.bb.secondPoint[2], 1.0f),
+                        vec4(PushConstant.bb.secondPoint[0], PushConstant.bb.firstPoint[1], PushConstant.bb.firstPoint[2], 1.0f),
+                        vec4(PushConstant.bb.secondPoint[0], PushConstant.bb.firstPoint[1], PushConstant.bb.secondPoint[2], 1.0f),
+                        vec4(PushConstant.bb.secondPoint[0], PushConstant.bb.secondPoint[1], PushConstant.bb.firstPoint[2], 1.0f),
+                            PushConstant.bb.secondPoint};
+        bool flag = false;
+        for (int j = 0; j < 8; j++) {
+            vec4 res_bound = PushConstant.mProjView * posMatrix[idx] * obb_points[j];
+            res_bound = res_bound / res_bound.w;
+            flag = flag || (abs(res_bound[0]) <= 1.0 && abs(res_bound[1]) <= 1.0 && res_bound[2] >= 0 && res_bound[2] <= 1.0);
+        }
+        int num = 0;
+        if (flag) {
+            uint num = atomicAdd(instanceCount, 1);
+            outputIndexes[num] = idx;
+        }
     }
 }

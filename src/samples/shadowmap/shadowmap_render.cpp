@@ -58,7 +58,7 @@ void SimpleShadowmapRender::AllocateResources()
   outputInstance = m_context->createBuffer(etna::Buffer::CreateInfo
   {
     .size        = sizeof(uint32_t) * m_numInstLine * m_numInstLine,
-        .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndirectBuffer,
     .memoryUsage = VMA_MEMORY_USAGE_CPU_ONLY
   });
   m_boOutputInstance = outputInstance.map();
@@ -223,6 +223,7 @@ void SimpleShadowmapRender::FillComputeBuffers()
 void SimpleShadowmapRender::RunCompute(VkCommandBuffer a_cmdBuff, const float4x4 &a_wvp)
 {
   FillComputeBuffers();
+  vkCmdFillBuffer(a_cmdBuff, instanceCount.get(), 0, VK_WHOLE_SIZE, 0);
   VkShaderStageFlags stageFlags = (VK_SHADER_STAGE_COMPUTE_BIT);
   pushConstComp.projView        = a_wvp;
   for (uint32_t i = 0; i < m_pScnMgr->InstancesNum(); ++i)
@@ -241,7 +242,7 @@ void SimpleShadowmapRender::RunCompute(VkCommandBuffer a_cmdBuff, const float4x4
           .dstStageMask  = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
           .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
           .buffer        = instanceCount.get(),
-          .size          = VK_WHOLE_SIZE 
+          .size          = sizeof(int32_t)
         }
       };
       VkDependencyInfo depInfo{
@@ -252,12 +253,6 @@ void SimpleShadowmapRender::RunCompute(VkCommandBuffer a_cmdBuff, const float4x4
       };
       vkCmdPipelineBarrier2(a_cmdBuff, &depInfo);
     }
-    //fence here
-    uint32_t numInstances;
-    memcpy(&numInstances, m_boInstanceCount, sizeof(uint32_t));
-    std::vector<uint32_t> instancesNum(m_numInstLine * m_numInstLine);
-    memcpy(instancesNum.data(), m_boOutputInstance, sizeof(uint32_t) * instancesNum.size());
-    uint32_t numInstances2 = 0;   
   }
 }
 
@@ -272,16 +267,11 @@ void SimpleShadowmapRender::DrawSceneCmd(VkCommandBuffer a_cmdBuff, const float4
     vkCmdBindIndexBuffer(a_cmdBuff, indexBuf, 0, VK_INDEX_TYPE_UINT32);
 
     pushConst2M.projView = a_wvp;
-    for (uint32_t i = 0; i < m_pScnMgr->InstancesNum(); ++i)
-    {
-        auto inst         = m_pScnMgr->GetInstanceInfo(i);
-        pushConst2M.model = m_pScnMgr->GetInstanceMatrix(i);
-        vkCmdPushConstants(a_cmdBuff, m_basicForwardPipeline.getVkPipelineLayout(),
+
+    vkCmdPushConstants(a_cmdBuff, m_basicForwardPipeline.getVkPipelineLayout(),
             stageFlags, 0, sizeof(pushConst2M), &pushConst2M);
 
-        auto mesh_info = m_pScnMgr->GetMeshInfo(inst.mesh_id);
-        vkCmdDrawIndexed(a_cmdBuff, mesh_info.m_indNum, 1, mesh_info.m_indexOffset, mesh_info.m_vertexOffset, 0);
-    }
+    vkCmdDrawIndexedIndirect(a_cmdBuff, outputInstance.get(), 0, 1, 0);
 }
 
 void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, VkImage a_targetImage, VkImageView a_targetImageView)
@@ -334,9 +324,16 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
   //// draw scene to shadowmap
   //
   {
-    etna::RenderTargetState renderTargets(a_cmdBuff, {2048, 2048}, {}, shadowMap.getView({}));
+    etna::RenderTargetState renderTargets(a_cmdBuff, { 2048, 2048 }, {}, shadowMap.getView({}));
     {
+      auto simpleMaterialInfo = etna::get_shader_program("simple_shadow");
+      auto set                = etna::create_descriptor_set(simpleMaterialInfo.getDescriptorLayoutId(0), { 
+        etna::Binding{ 2, vk::DescriptorBufferInfo{ posMatrix.get(), 0, VK_WHOLE_SIZE } },
+        etna::Binding{ 3, vk::DescriptorBufferInfo{ outputInstance.get(), 0, VK_WHOLE_SIZE }}
+      });
+      VkDescriptorSet vkSet   = set.getVkSet();
       vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline.getVkPipeline());
+      vkCmdBindDescriptorSets(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, VK_NULL_HANDLE);
       DrawSceneCmd(a_cmdBuff, m_lightMatrix);
     }
   }
@@ -420,7 +417,9 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
 
     auto set = etna::create_descriptor_set(simpleMaterialInfo.getDescriptorLayoutId(0), {
       etna::Binding {0, vk::DescriptorBufferInfo {constants.get(), 0, VK_WHOLE_SIZE}},
-      etna::Binding {1, vk::DescriptorImageInfo {defaultSampler.get(), shadowMap.getView({}), vk::ImageLayout::eShaderReadOnlyOptimal}}
+      etna::Binding {1, vk::DescriptorImageInfo {defaultSampler.get(), shadowMap.getView({}), vk::ImageLayout::eShaderReadOnlyOptimal}},
+      etna::Binding {2, vk::DescriptorBufferInfo {posMatrix.get(), 0, VK_WHOLE_SIZE}},
+      etna::Binding {3, vk::DescriptorBufferInfo {outputInstance.get(), 0, VK_WHOLE_SIZE}}
     });
 
     VkDescriptorSet vkSet = set.getVkSet();
