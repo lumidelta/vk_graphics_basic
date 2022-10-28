@@ -137,6 +137,7 @@ private:
   void loadShaders();
 
   void SetupSimplePipeline();
+  void SetupDeviceFeatures();
   void RecreateSwapChain();
 
   void UpdateUniformBuffer(float a_time);
