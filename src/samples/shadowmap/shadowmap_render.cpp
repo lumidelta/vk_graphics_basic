@@ -347,15 +347,8 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
   }
 
 
-  //// draw scene to shadowmap
-  //
-  //{
-  //  etna::RenderTargetState renderTargets(a_cmdBuff, { 2048, 2048 }, {}, shadowMap.getView({}));
-  //  {
-  //    vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline.getVkPipeline());
-  //    DrawSceneCmd(a_cmdBuff, m_lightMatrix);
-  //  }
-  //}
+
+
 
   {
     std::array barriers
