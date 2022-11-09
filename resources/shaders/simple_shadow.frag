@@ -4,7 +4,9 @@
 
 #include "common.h"
 
-layout(location = 0) out vec4 out_fragColor;
+layout(location = 0) out vec3 gPosition;
+layout(location = 1) out vec3 gNormals;
+layout(location = 2) out vec4 gColors;
 
 layout (location = 0 ) in VS_OUT
 {
@@ -33,10 +35,12 @@ void main()
   const vec4 dark_violet = vec4(0.59f, 0.0f, 0.82f, 1.0f);
   const vec4 chartreuse  = vec4(0.5f, 1.0f, 0.0f, 1.0f);
 
-  vec4 lightColor1 = mix(dark_violet, chartreuse, abs(sin(Params.time)));
-  vec4 lightColor2 = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+  vec4 lightColor1 = vec4(1.0f, 1.0f, 1.0f, 1.0f);
    
   vec3 lightDir   = normalize(Params.lightPos - surf.wPos);
   vec4 lightColor = max(dot(surf.wNorm, lightDir), 0.0f) * lightColor1;
-  out_fragColor   = (lightColor*shadow + vec4(0.1f)) * vec4(Params.baseColor, 1.0f);
+
+  gPosition = surf.wPos;
+  gNormals  = surf.wNorm;
+  gColors   = (lightColor*shadow + vec4(0.1f)) * vec4(Params.baseColor, 1.0f);
 }

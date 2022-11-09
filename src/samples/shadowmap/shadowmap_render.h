@@ -28,7 +28,7 @@ public:
   uint32_t     GetWidth()      const override { return m_width; }
   uint32_t     GetHeight()     const override { return m_height; }
   VkInstance   GetVkInstance() const override { return m_context->getInstance(); }
-
+  void *m_boLights = nullptr;
   void InitVulkan(const char** a_instanceExtensions, uint32_t a_instanceExtensionsCount, uint32_t a_deviceId) override;
 
   void InitPresentation(VkSurfaceKHR &a_surface, bool initGUI) override;
@@ -45,8 +45,9 @@ private:
   etna::GlobalContext* m_context;
   etna::Image mainViewDepth;
   etna::Image shadowMap;
+  etna::Image gBufPos, gBufNorm, gBufColor;
   etna::Sampler defaultSampler;
-  etna::Buffer constants;
+  etna::Buffer constants, lights;
 
   VkCommandPool    m_commandPool    = VK_NULL_HANDLE;
 
@@ -75,11 +76,15 @@ private:
 
   etna::GraphicsPipeline m_basicForwardPipeline {};
   etna::GraphicsPipeline m_shadowPipeline {};
+  etna::GraphicsPipeline m_deferredPipeline{};
 
-  std::shared_ptr<vk_utils::DescriptorMaker> m_pBindings = nullptr;
+  std::shared_ptr<vk_utils::DescriptorMaker> m_pBindings = nullptr, m_pDeferredBindings = nullptr;
   
   VkSurfaceKHR m_surface = VK_NULL_HANDLE;
   VulkanSwapChain m_swapchain;
+  VkRenderPass renderPass;
+
+  uint32_t lightNum = 2;
 
   Camera   m_cam;
   uint32_t m_width  = 1024u;
@@ -132,10 +137,12 @@ private:
 
   void BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, VkImage a_targetImage, VkImageView a_targetImageView);
 
-  void DrawSceneCmd(VkCommandBuffer a_cmdBuff, const float4x4& a_wvp);
+  void DrawSceneCmd(VkCommandBuffer a_cmdBuff, const float4x4 &a_wvp);
+  void DrawSceneCmdDeferred(VkCommandBuffer a_cmdBuff, const float4x4 &a_wvp);
 
   void loadShaders();
 
+  void SetupDeferredPipeline();
   void SetupSimplePipeline();
   void RecreateSwapChain();
 
