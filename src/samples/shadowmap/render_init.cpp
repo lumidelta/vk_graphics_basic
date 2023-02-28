@@ -32,7 +32,7 @@ void SimpleShadowmapRender::InitVulkan(const char** a_instanceExtensions, uint32
           .features = m_enabledDeviceFeatures
         },
       // Replace with an index if etna detects your preferred GPU incorrectly 
-      .physicalDeviceIndexOverride = {1}
+      .physicalDeviceIndexOverride = 0
     });
   
   m_context = &etna::get_context();
