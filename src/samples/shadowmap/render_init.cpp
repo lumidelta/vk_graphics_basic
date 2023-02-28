@@ -5,7 +5,11 @@
 
 SimpleShadowmapRender::SimpleShadowmapRender(uint32_t a_width, uint32_t a_height) : m_width(a_width), m_height(a_height)
 {
-  m_uniforms.baseColor = LiteMath::float3(0.9f, 0.92f, 1.0f);
+  m_uniforms.baseColor  = LiteMath::float3(0.9f, 0.92f, 1.0f);
+  m_uniforms.lightPos   = LiteMath::float3(0.0f, 0.0f, 2.0f);
+  m_uniforms.lightDir   = LiteMath::float3(0.0f, 0.0f, -1.0f);
+  m_uniforms.innerAngle = 10.f;
+  m_uniforms.outerAngle = 30.f;
 }
 
 void SimpleShadowmapRender::InitVulkan(const char** a_instanceExtensions, uint32_t a_instanceExtensionsCount, uint32_t)
@@ -28,7 +32,7 @@ void SimpleShadowmapRender::InitVulkan(const char** a_instanceExtensions, uint32
           .features = m_enabledDeviceFeatures
         },
       // Replace with an index if etna detects your preferred GPU incorrectly 
-      .physicalDeviceIndexOverride = {}
+      .physicalDeviceIndexOverride = {1}
     });
   
   m_context = &etna::get_context();

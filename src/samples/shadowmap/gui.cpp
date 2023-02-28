@@ -13,6 +13,9 @@ void SimpleShadowmapRender::SetupGUIElements()
 
     ImGui::ColorEdit3("Meshes base color", m_uniforms.baseColor.M, ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs);
     ImGui::SliderFloat3("Light source position", m_uniforms.lightPos.M, -10.f, 10.f);
+    ImGui::SliderFloat3("Light source direction", m_uniforms.lightDir.M, -10.f, 10.f);
+    ImGui::SliderFloat("Light inner angle", &m_uniforms.innerAngle, 10.f, m_uniforms.outerAngle);
+    ImGui::SliderFloat("Light outer angle", &m_uniforms.outerAngle, m_uniforms.innerAngle, 60.f);
 
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 

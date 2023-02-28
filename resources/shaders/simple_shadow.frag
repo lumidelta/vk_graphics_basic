@@ -37,6 +37,10 @@ void main()
   vec4 lightColor2 = vec4(1.0f, 1.0f, 1.0f, 1.0f);
    
   vec3 lightDir   = normalize(Params.lightPos - surf.wPos);
+  float cosAngle = dot(-lightDir, normalaze(Params.lightDir));
+  float cosInner = cos(radians(Params.innerAngle));
+  float cosOuter = cos(radians(Params.outerAngle));
+  float intensity = (cosAngle > cosInner) ? 1 : (cosAngle < cosOuter) ? 0 : (cosAngle - cosOuter) / (cosInner - cosOuter);
   vec4 lightColor = max(dot(surf.wNorm, lightDir), 0.0f) * lightColor1;
-  out_fragColor   = (lightColor*shadow + vec4(0.1f)) * vec4(Params.baseColor, 1.0f);
+  out_fragColor   = intensity * (lightColor*shadow + vec4(0.1f)) * vec4(Params.baseColor, 1.0f);
 }
